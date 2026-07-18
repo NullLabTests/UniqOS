@@ -286,6 +286,8 @@ This project is shared as a learning resource and inspiration. Feel free to stud
   <em>This project is under active construction — it is a research tool for testing the limits of current AI agent swarms and frameworks. Nothing here is stable or final. Everything is an experiment.</em>
 </p>
 
+Getting a **working browser** was one of the toughest parts — a full TCP/IP stack from scratch, DNS resolution, HTTP parsing, then a DOM engine, layout, and styled renderer all had to align before a single webpage appeared on screen. If you want another project that pushes the same boundaries, try a **physics engine** from scratch: constraint solvers, collision detection, continuous integration tests in a simulated environment — it exercises the same kind of cross-layer reasoning that separates toy demos from real working systems.
+
 <p align="center">
   <strong>Built in the open. For the curious. For the future.</strong><br>
   <em>"The best way to predict the future is to build it."</em>
