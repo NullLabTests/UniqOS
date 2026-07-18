@@ -6,8 +6,12 @@
 #define FONT_H 16
 
 static uint32_t *fb = 0;
-static int fb_w = 1024;
-static int fb_h = 768;
+static int fb_w = 1024;  // framebuffer width (stride)
+static int fb_h = 768;   // framebuffer height
+static int fb_ox = 0;    // x offset for rendering
+static int fb_oy = 0;    // y offset for rendering
+static int term_w = 680; // terminal area width
+static int term_h = 400; // terminal area height
 static int fg = 0x00FFFFFF;
 static int bg = 0x00222244;
 
@@ -63,10 +67,11 @@ static int ansi_parse(const char **s) {
     return 0;
 }
 
-void fbterm_init(uint32_t *framebuffer, int w, int h) {
-    fb = framebuffer; fb_w = w; fb_h = h;
+void fbterm_init(uint32_t *framebuffer, int w, int h, int ox, int oy) {
+    fb = framebuffer; term_w = w; term_h = h; fb_ox = ox; fb_oy = oy;
     cols = w / FONT_W; if (cols > 80) cols = 80;
     rows = h / FONT_H; if (rows > 48) rows = 48;
+    // fb_w/fb_h are the actual framebuffer dimensions (set by display_init)
     cx = 0; cy = 0;
     fg = 0x00FFFFFF; bg = 0x00222244;
     for (int r = 0; r < rows; r++)
@@ -141,15 +146,16 @@ void fbterm_scroll(void) {
 }
 
 void fbterm_render(void) {
-    if (!dirty) return;
     for (int r = 0; r < rows; r++) {
         for (int c = 0; c < cols; c++) {
             cell_t *cell = &cells[r][c];
             const uint8_t *glyph = font8x16_basic[(unsigned char)cell->c];
-            int bx = c * FONT_W, by = r * FONT_H;
-            for (int row = 0; row < FONT_H && (by + row) < fb_h; row++) {
+            int bx = fb_ox + c * FONT_W, by = fb_oy + r * FONT_H;
+            int by_end = fb_oy + term_h;
+            int bx_end = fb_ox + term_w;
+            for (int row = 0; row < FONT_H && (by + row) < by_end && (by + row) < fb_h; row++) {
                 uint8_t bits = glyph[row];
-                for (int col = 0; col < FONT_W && (bx + col) < fb_w; col++)
+                for (int col = 0; col < FONT_W && (bx + col) < bx_end && (bx + col) < fb_w; col++)
                     fb[(by + row) * fb_w + (bx + col)] = (bits & (0x80 >> col)) ? cell->fg : cell->bg;
             }
         }

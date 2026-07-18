@@ -308,7 +308,7 @@ static void launch_terminal(void) {
         return;
     }
     shell_win_id = window_create(80, 40, 700, 450, "Terminal");
-    fbterm_init(display_get_buffer(), 680, 400);
+    fbterm_init(display_get_buffer(), 680, 400, 80, 64);
     fbterm_write("Welcome to UniqOS Desktop!\n");
     fbterm_write(shell_prompt());
     window_set_draw(shell_win_id, term_draw);
@@ -408,7 +408,7 @@ void desktop_init(void) {
     shell_init();
     vfs_init();
 
-    fbterm_init(display_get_buffer(), 680, 400);
+    fbterm_init(display_get_buffer(), 680, 400, 80, 64);
 
     for (int i = 0; i < 6; i++) active_launchers[i] = 0;
 
@@ -489,7 +489,7 @@ void desktop_run(void) {
                 int new_h = w->h + dh; if (new_h < 100) new_h = 100;
                 w->w = new_w; w->h = new_h;
                 if (w->id == shell_win_id) {
-                    fbterm_init(display_get_buffer(), w->w - 20, w->h - w->titlebar_h - 4);
+                    fbterm_init(display_get_buffer(), w->w - 20, w->h - w->titlebar_h - 6, w->x + 2, w->y + w->titlebar_h + 2);
                 }
                 redraw = 1;
             }

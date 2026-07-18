@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-void fbterm_init(uint32_t *fb, int w, int h);
+void fbterm_init(uint32_t *fb, int w, int h, int ox, int oy);
 void fbterm_putchar(char c);
 void fbterm_write(const char *s);
 void fbterm_printf(const char *fmt, ...);
