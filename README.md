@@ -87,11 +87,20 @@ The new styled-text browser pipeline running alongside the terminal. Blue link c
   <img src="assets/06_styled_browser.jpg" alt="Styled browser behind the terminal window" width="600">
 </p>
 
-### Clean Browser View
-The styled-text browser visible cleanly after closing overlapping windows. Shows rendered HTML content with styled text, blue clickable links, and correct word-wrapping layout.
-<p align="center">
-  <img src="assets/09_styled_browser_clean.jpg" alt="Styled browser clean view with rendered content" width="600">
-</p>
+---
+
+## Known Issues
+
+- **Terminal overlaps browser at boot** — the terminal window has focus after boot, so it renders on top of the browser. Close or minimize the terminal to see the browser content. This is a z-ordering UX issue, not a browser bug.
+- **No scrollbar** — content that overflows the viewport is not accessible. The layout engine supports word-wrapping and pagination, but there is no scrollbar or viewport scrolling yet.
+- **`<style>` tag content rendered as text** — the HTML parser includes the raw CSS text from `<style>` tags as visible content nodes. This should either be skipped or parsed into actual CSS rules.
+
+## Next Steps
+
+1. **Test with a richer page** — create a test page (e.g., `http://10.0.2.3/test.html`) with bold, italic, underline, multiple headings, paragraphs, images, and links to verify the full layout pipeline.
+2. **Add scroll support** — implement viewport scrolling for content that exceeds the browser window height, with visual scrollbar indicators.
+3. **Fix `<style>` tag handling** — either skip `<style>` content in the HTML parser or parse inline CSS rules and apply them to the style system.
+4. **Network diagnostics** — capture pcap traces, run font grid tests, and add render tracing to confirm all subsystems are healthy before tackling more complex pages.
 
 ---
 
