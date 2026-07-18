@@ -76,11 +76,11 @@ A graphical file manager that lists files in the VFS with colored titlebar and p
 
 **System monitor** — real-time memory and process info:
 
-[![System monitor](assets/01_boot.jpg)](https://raw.githubusercontent.com/NullLabTests/UniqOS/master/assets/demo2.mp4)
+[![System monitor](assets/01_boot.jpg)](https://raw.githubusercontent.com/NullLabTests/UniqOS/master/assets/demo.mp4)
 
 **Desktop walkthrough** — multiple windows, browser, and apps:
 
-[![Desktop walkthrough](assets/05_fileman.jpg)](https://raw.githubusercontent.com/NullLabTests/UniqOS/master/assets/demo.mp4)
+[![Desktop walkthrough](assets/05_fileman.jpg)](https://raw.githubusercontent.com/NullLabTests/UniqOS/master/assets/demo2.mp4)
 
 ---
 
