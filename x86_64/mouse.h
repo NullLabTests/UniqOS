@@ -4,4 +4,5 @@
 
 void mouse_init(void);
 void mouse_get_state(int *x, int *y, int *buttons);
+void mouse_set_position(int x, int y);
 void mouse_poll(void);

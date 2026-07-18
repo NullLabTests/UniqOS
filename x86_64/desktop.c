@@ -31,6 +31,7 @@ static int mouse_x = 0, mouse_y = 0, mouse_buttons = 0;
 static int prev_mouse_buttons = 0;
 
 static int shell_win_id = 0;
+static int mouse_mode = 0;
 static int context_menu_open = 0;
 static int context_menu_x = 0, context_menu_y = 0;
 
@@ -498,19 +499,44 @@ void desktop_run(void) {
         int c = keyboard_getc();
         if (c > 0) {
             if (c == 0x1B) context_menu_open = 0;
-            if (keyboard_is_ctrl() && c >= 'a' && c <= 'z') {
+
+            if (keyboard_is_ctrl() && c == 'm') {
+                mouse_mode = !mouse_mode;
+                kprintf("[desktop] mouse_mode=%d\n", mouse_mode);
+                redraw = 1;
+            } else if (mouse_mode) {
+                int moved = 0;
                 switch (c) {
-                    case 't': launch_terminal(); break;
-                    case 'f': fileman_open("/home/user"); break;
-                    case 'e': editor_open(0); break;
-                    case 'm': sysmon_open(); break;
-                    case 'b': browser_init(); break;
-                    default: window_handle_key((char)c); break;
+                    case 'h': case 0x4B: mouse_x -= 16; moved = 1; break;
+                    case 'l': case 0x4D: mouse_x += 16; moved = 1; break;
+                    case 'k': case 0x48: mouse_y -= 16; moved = 1; break;
+                    case 'j': case 0x50: mouse_y += 16; moved = 1; break;
+                    case ' ': mouse_buttons = 1; moved = 1; break;
+                    case 'r': mouse_buttons = 2; moved = 1; break;
+                    case '\n': mouse_buttons = 0; moved = 1; break;
+                }
+                if (moved) {
+                    if (mouse_x < 0) mouse_x = 0;
+                    if (mouse_y < TOPBAR_H) mouse_y = TOPBAR_H;
+                    if (mouse_x >= fb_w) mouse_x = fb_w - 1;
+                    if (mouse_y >= fb_h) mouse_y = fb_h - 1;
+                    mouse_set_position(mouse_x, mouse_y);
+                    redraw = 1;
                 }
             } else {
-                window_handle_key((char)c);
+                if (keyboard_is_ctrl() && c >= 'a' && c <= 'z') {
+                    switch (c) {
+                        case 't': launch_terminal(); break;
+                        case 'f': fileman_open("/home/user"); break;
+                        case 'e': editor_open(0); break;
+                        case 'b': browser_init(); break;
+                        default: window_handle_key((char)c); break;
+                    }
+                } else {
+                    window_handle_key((char)c);
+                }
+                redraw = 1;
             }
-            redraw = 1;
         }
 
         if (virtio_present) {

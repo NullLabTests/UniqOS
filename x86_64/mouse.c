@@ -114,3 +114,8 @@ void mouse_get_state(int *x, int *y, int *buttons) {
     *y = mouse_y;
     *buttons = mouse_buttons;
 }
+
+void mouse_set_position(int x, int y) {
+    mouse_x = x;
+    mouse_y = y;
+}
