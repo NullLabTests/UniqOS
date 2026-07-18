@@ -91,8 +91,12 @@ static void window_draw_titlebar(window_t *w) {
 
 static void window_draw_border(window_t *w) {
     uint32_t *fb = fb_buf;
-    uint32_t border = w->has_focus ? 0x00AACCFF : 0x007788AA;
     for (int r = 0; r < WINDOW_BORDER; r++) {
+        int bright = w->has_focus ? (160 - r * 20) : (100 - r * 10);
+        if (bright < 30) bright = 30;
+        int rb = bright * 160 / 255, gb = bright * 190 / 255, bb = bright * 255 / 255;
+        if (rb > 255) rb = 255; if (gb > 255) gb = 255; if (bb > 255) bb = 255;
+        uint32_t border = (rb << 16) | (gb << 8) | bb;
         int y1 = w->y - r, y2 = w->y + w->h - 1 + r;
         int x1 = w->x - r, x2 = w->x + w->w - 1 + r;
         for (int x = x1; x <= x2; x++) {

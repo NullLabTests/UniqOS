@@ -56,14 +56,53 @@ static void draw_background(void) {
 }
 
 static void draw_bottom_panel(void) {
-    int py = fb_h - 40;
+    int py = fb_h - 44;
+    int ph = 44;
     for (int y = py; y < fb_h; y++)
-        for (int x = 0; x < fb_w; x++)
-            fb_buf[y * fb_w + x] = 0x00222A3E;
+        for (int x = 0; x < fb_w; x++) {
+            int t = (y - py) * 255 / ph;
+            int r = 20 + t * 12 / 255;
+            int g = 30 + t * 15 / 255;
+            int b = 50 + t * 20 / 255;
+            fb_buf[y * fb_w + x] = (r << 16) | (g << 8) | b;
+        }
     for (int x = 0; x < fb_w; x++)
         fb_buf[py * fb_w + x] = 0x00445577;
+
     extern const uint8_t font8x16_basic[128][16];
-    // Clock on right of bottom panel
+
+    // App launcher icons in dock
+    int lx = 12;
+    for (int i = 0; i < ico_count; i++) {
+        int ico_w = 36;
+        int ia = py + 4;
+        display_fill_rect(lx, ia, ico_w, ph - 8, 0x00303A55);
+        // icon letter
+        int cd = ico_icons[i][0];
+        if (cd >= 'A' && cd <= 'Z') cd = cd - 'A' + 'a';
+        const uint8_t *g = font8x16_basic[(unsigned char)cd];
+        int cx2 = lx + (ico_w - 8) / 2, cy2 = ia + (ph - 28) / 2;
+        for (int row = 0; row < 14 && cy2 + row < fb_h; row++) {
+            uint8_t bits = g[row];
+            for (int col = 0; col < 8 && cx2 + col < fb_w; col++)
+                if (bits & (0x80 >> col))
+                    fb_buf[(cy2 + row) * fb_w + (cx2 + col)] = ico_colors[i];
+        }
+        // label below icon
+        for (int j = 0; ico_names[i][j] && j < 6; j++) {
+            const uint8_t *g2 = font8x16_basic[(unsigned char)ico_names[i][j]];
+            int lx2 = lx + 2 + j * 8;
+            for (int row = 0; row < 10; row++) {
+                uint8_t bits = g2[row];
+                for (int col = 0; col < 8; col++)
+                    if (bits & (0x80 >> col))
+                        fb_buf[(cy2 + 16 + row) * fb_w + (lx2 + col)] = 0x007788AA;
+            }
+        }
+        lx += ico_w + 6;
+    }
+
+    // Clock on right
     uint64_t ms = timer_get_ms();
     const char *time_str = timefmt_clock(ms);
     int tx = fb_w - 120;

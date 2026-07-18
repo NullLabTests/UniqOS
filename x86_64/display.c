@@ -139,13 +139,41 @@ uint32_t *display_get_buffer(void) { return back_buffer; }
 void display_put_char(int x, int y, char c, uint32_t fg, uint32_t bg) {
     if (!fb_initialized) return;
     if (c < 0 || c > 127) return;
+    int fgr = (fg >> 16) & 0xFF, fgg = (fg >> 8) & 0xFF, fgb = fg & 0xFF;
+    int bgr = (bg >> 16) & 0xFF, bgg = (bg >> 8) & 0xFF, bgb = bg & 0xFF;
     for (int row = 0; row < 16; row++) {
         uint8_t bits = font8x16_basic[(int)c][row];
         for (int col = 0; col < 8; col++) {
-            int px = x + col;
-            int py = y + row;
+            int px = x + col, py = y + row;
             if (px < 0 || px >= fb_width || py < 0 || py >= fb_height) continue;
-            back_buffer[py * fb_width + px] = (bits & (0x80 >> col)) ? fg : bg;
+            int on = (bits & (0x80 >> col)) != 0;
+            if (!on && (fgr == bgr && fgg == bgg && fgb == bgb)) {
+                back_buffer[py * fb_width + px] = bg;
+                continue;
+            }
+            // check 4-neighbor edge for anti-aliasing
+            int n_on = 0, total = 0;
+            if (col > 0) { n_on += (bits & (0x80 >> (col-1))) != 0; total++; }
+            if (col < 7) { n_on += (bits & (0x80 >> (col+1))) != 0; total++; }
+            if (row > 0) {
+                uint8_t pr = font8x16_basic[(int)c][row-1];
+                n_on += (pr & (0x80 >> col)) != 0; total++;
+            }
+            if (row < 15) {
+                uint8_t nr = font8x16_basic[(int)c][row+1];
+                n_on += (nr & (0x80 >> col)) != 0; total++;
+            }
+            if (on && n_on < total) {
+                // interior fg pixel with bg neighbor -> half blend
+                int r = (fgr + bgr) >> 1, g = (fgg + bgg) >> 1, b = (fgb + bgb) >> 1;
+                back_buffer[py * fb_width + px] = (r << 16) | (g << 8) | b;
+            } else if (!on && n_on > 0) {
+                // bg pixel with fg neighbor -> half blend
+                int r = (fgr + bgr) >> 1, g = (fgg + bgg) >> 1, b = (fgb + bgb) >> 1;
+                back_buffer[py * fb_width + px] = (r << 16) | (g << 8) | b;
+            } else {
+                back_buffer[py * fb_width + px] = on ? fg : bg;
+            }
         }
     }
 }
