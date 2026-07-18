@@ -58,7 +58,7 @@ This project is part of that trajectory. Each AI-assisted capability added to Un
 ## Screenshots
 
 ### Booting to Desktop
-The OS boots from GRUB into a 1024×768 framebuffer with a fully functional GUI desktop environment including a bottom panel and window manager.
+The OS boots from GRUB into a 1024x768 framebuffer with a fully functional GUI desktop environment including a bottom panel and window manager.
 <p align="center">
   <img src="assets/01_boot.jpg" alt="UniqOS Booting to Desktop" width="600">
 </p>
@@ -81,26 +81,11 @@ A graphical file manager that lists files in the VFS with colored titlebar and p
   <img src="assets/05_fileman.jpg" alt="File Manager showing directory listing" width="600">
 </p>
 
-### Styled Browser Pipeline (with terminal overlap)
-The new styled-text browser pipeline running alongside the terminal. Blue link colors, grey rendered text, and proper DOM/CSS/layout processing — still behind the terminal window.
-<p align="center">
-  <img src="assets/06_styled_browser.jpg" alt="Styled browser behind the terminal window" width="600">
-</p>
-
 ---
 
-## Known Issues
+## Video Demo
 
-- **Terminal overlaps browser at boot** — the terminal window has focus after boot, so it renders on top of the browser. Close or minimize the terminal to see the browser content. This is a z-ordering UX issue, not a browser bug.
-- **No scrollbar** — content that overflows the viewport is not accessible. The layout engine supports word-wrapping and pagination, but there is no scrollbar or viewport scrolling yet.
-- **`<style>` tag content rendered as text** — the HTML parser includes the raw CSS text from `<style>` tags as visible content nodes. This should either be skipped or parsed into actual CSS rules.
-
-## Next Steps
-
-1. **Test with a richer page** — create a test page (e.g., `http://10.0.2.3/test.html`) with bold, italic, underline, multiple headings, paragraphs, images, and links to verify the full layout pipeline.
-2. **Add scroll support** — implement viewport scrolling for content that exceeds the browser window height, with visual scrollbar indicators.
-3. **Fix `<style>` tag handling** — either skip `<style>` content in the HTML parser or parse inline CSS rules and apply them to the style system.
-4. **Network diagnostics** — capture pcap traces, run font grid tests, and add render tracing to confirm all subsystems are healthy before tackling more complex pages.
+A keyboard-driven walkthrough of the UniqOS desktop will be added here soon.
 
 ---
 
@@ -111,7 +96,7 @@ UniqOS is a from-scratch x86_64 operating system with approximately **8,000 line
 ### Boot & Kernel
 | Component | Description |
 |---|---|
-| **Boot** | GRUB/Multiboot2 → 64-bit long mode, boots via `boot.S`/`boot64.S` |
+| **Boot** | GRUB/Multiboot2 -> 64-bit long mode, boots via `boot.S`/`boot64.S` |
 | **Memory** | Physical Memory Manager (PMM) + Virtual Memory Manager (VMM) with paging |
 | **Heap** | Custom `kmalloc`/`kfree` allocator for kernel objects |
 | **Interrupts** | IDT, PIC, PIT (100Hz timer), syscall gate |
@@ -120,7 +105,7 @@ UniqOS is a from-scratch x86_64 operating system with approximately **8,000 line
 ### Drivers
 | Component | Description |
 |---|---|
-| **Display** | 1024×768 32-bit framebuffer via VESA/VBE (GRUB provides mode) |
+| **Display** | 1024x768 32-bit framebuffer via VESA/VBE (GRUB provides mode) |
 | **Keyboard** | PS/2 scancode handling with keyboard mouse mode (Ctrl+M) |
 | **Mouse** | Absolute positioning via VirtualBox extension-less mouse mode |
 | **NIC** | `virtio_net` — paravirtualized network adapter, interrupt-driven |
@@ -130,7 +115,7 @@ UniqOS is a from-scratch x86_64 operating system with approximately **8,000 line
 | Component | Description |
 |---|---|
 | **Ethernet** | Raw frame TX/RX via virtio |
-| **ARP** | Address Resolution Protocol — resolves IP→MAC, caches entries |
+| **ARP** | Address Resolution Protocol — resolves IP->MAC, caches entries |
 | **IP** | Internet Protocol — packet routing, checksums |
 | **ICMP** | Ping support (echo request/reply) |
 | **TCP** | Full state machine — SYN/SYN-ACK/ACK, `tcp_send`/`tcp_close`, sequence tracking |
@@ -147,7 +132,7 @@ UniqOS is a from-scratch x86_64 operating system with approximately **8,000 line
 ### Applications
 | App | Description |
 |---|---|
-| **Browser** | HTML parser → CSS style mapping → Flow layout engine → Styled renderer → Clickable link map. Fetches via HTTP/1.0. |
+| **Browser** | HTML parser -> CSS style mapping -> Flow layout engine -> Styled renderer -> Clickable link map. Fetches via HTTP/1.0. |
 | **Terminal** | Framebuffer terminal emulator with command shell |
 | **Editor** | Multi-line text editor with line numbers |
 | **File Manager** | Directory listing with VFS backend |
@@ -220,6 +205,24 @@ The trajectory is clear: each generation of these frameworks reduces the gap bet
 
 ---
 
+## Known Issues
+
+- **Terminal overlaps browser at boot** — the terminal window has focus after boot, so it renders on top of the browser. Close or minimize the terminal to see the browser content. This is a z-ordering UX issue, not a browser bug.
+- **No scrollbar** — content that overflows the viewport is not accessible. The layout engine supports word-wrapping but there is no scrollbar or viewport scrolling yet.
+- **`<style>` tag content rendered as text** — the HTML parser includes raw CSS text from `<style>` tags as visible content nodes. This should either be skipped or parsed into actual CSS rules.
+- **No HTTPS** — only plain HTTP is supported. TLS/SSL is not implemented.
+- **NAT-only networking** — relies on VirtualBox NAT (10.0.2.0/24). No DHCP or static IP configuration UI.
+
+## Next Steps
+
+1. **Record a video demo** — keyboard-driven walkthrough of the OS showing boot, app switching, browser loading, and styled rendering.
+2. **Test with a richer page** — create a test page (e.g., `http://10.0.2.3/test.html`) with bold, italic, underline, headings, paragraphs, images, and links to verify the full layout pipeline.
+3. **Add scroll support** — implement viewport scrolling for content exceeding the browser window height, with visual scrollbar indicators.
+4. **Fix `<style>` tag handling** — skip `<style>` content in the HTML parser or parse inline CSS rules into the style system.
+5. **Network diagnostics** — capture pcap traces, run font grid tests, add render tracing to confirm all subsystems healthy.
+
+---
+
 ## File Map
 
 ```
@@ -227,7 +230,7 @@ UniqOS/
 ├── assets/               # Screenshots and logo for README
 ├── qa_shots/             # Full-resolution screenshots
 ├── x86_64/
-│   ├── boot.S / boot64.S # Bootloader entry (GRUB → long mode)
+│   ├── boot.S / boot64.S # Bootloader entry (GRUB -> long mode)
 │   ├── kernel.c          # Main kernel entry point
 │   ├── kernel.h          # Kernel API and platform defines
 │   ├── Makefile          # Build system (clang-21 cross-compiler)
@@ -251,7 +254,7 @@ UniqOS/
 │   ├── dns.c             # DNS resolver (UDP, callback-based)
 │   ├── http.c            # HTTP 1.0 GET client
 │   ├── html_parse.c      # Recursive-descent HTML DOM parser
-│   ├── css_minimal.c     # Tag→CSS style mapping (bold, italic, block, etc.)
+│   ├── css_minimal.c     # Tag->CSS style mapping (bold, italic, block, etc.)
 │   ├── layout.c          # Flow layout engine (word-wrap, margin, block)
 │   ├── render.c          # Box renderer (styled text, images, links)
 │   ├── link_map.c        # Clickable link rectangle builder
@@ -284,7 +287,7 @@ Not just a booting kernel — a system with:
 - Multiple concurrent applications (terminal, editor, file manager, system monitor)
 - Mouse and keyboard input
 
-The browser can load real websites from the internet, parse their HTML, apply CSS-like styling, lay out the content with word wrapping, render bold/underlined/colored text, and handle clickable links for navigation.
+The browser loads real websites from the internet, parses their HTML, applies CSS-like styling, lays out the content with word wrapping, renders bold/underlined/colored text, and handles clickable links for navigation.
 
 This is a **completely unique browser fingerprint** — no Chrome, no Firefox, no WebKit. Just raw HTTP over a custom TCP stack displayed through a custom font renderer.
 
