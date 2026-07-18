@@ -205,24 +205,6 @@ The trajectory is clear: each generation of these frameworks reduces the gap bet
 
 ---
 
-## Known Issues
-
-- **Terminal overlaps browser at boot** — the terminal window has focus after boot, so it renders on top of the browser. Close or minimize the terminal to see the browser content. This is a z-ordering UX issue, not a browser bug.
-- **No scrollbar** — content that overflows the viewport is not accessible. The layout engine supports word-wrapping but there is no scrollbar or viewport scrolling yet.
-- **`<style>` tag content rendered as text** — the HTML parser includes raw CSS text from `<style>` tags as visible content nodes. This should either be skipped or parsed into actual CSS rules.
-- **No HTTPS** — only plain HTTP is supported. TLS/SSL is not implemented.
-- **NAT-only networking** — relies on VirtualBox NAT (10.0.2.0/24). No DHCP or static IP configuration UI.
-
-## Next Steps
-
-1. **Record a video demo** — keyboard-driven walkthrough of the OS showing boot, app switching, browser loading, and styled rendering.
-2. **Test with a richer page** — create a test page (e.g., `http://10.0.2.3/test.html`) with bold, italic, underline, headings, paragraphs, images, and links to verify the full layout pipeline.
-3. **Add scroll support** — implement viewport scrolling for content exceeding the browser window height, with visual scrollbar indicators.
-4. **Fix `<style>` tag handling** — skip `<style>` content in the HTML parser or parse inline CSS rules into the style system.
-5. **Network diagnostics** — capture pcap traces, run font grid tests, add render tracing to confirm all subsystems healthy.
-
----
-
 ## File Map
 
 ```

@@ -36,6 +36,7 @@ void window_close(int id);
 void window_move(int id, int x, int y);
 void window_resize(int id, int w, int h);
 void window_focus(int id);
+void window_zorder_top(int id);
 void window_set_draw(int id, void (*draw)(window_t *));
 void window_set_onkey(int id, void (*onkey)(window_t *, char));
 void window_set_onclick(int id, int (*onclick)(window_t *, int, int));

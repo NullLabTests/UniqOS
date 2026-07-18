@@ -113,6 +113,26 @@ static const char *parse_element(const char *p, const char *end, html_node_t **o
         return p;
     }
 
+    int skip_content = (strcmp(tagname, "style") == 0 || strcmp(tagname, "script") == 0);
+
+    if (skip_content) {
+        while (p < end) {
+            if (*p == '<' && p + 1 < end && p[1] == '/') {
+                p += 2;
+                char endtag[64];
+                p = parse_tag_name(p, end, endtag, sizeof(endtag));
+                if (endtag[0] && strcmp(endtag, tagname) == 0) {
+                    while (p < end && *p != '>') p++;
+                    if (p < end) p++;
+                }
+                break;
+            }
+            p++;
+        }
+        *out = node;
+        return p;
+    }
+
     while (p < end) {
         p = skip_ws(p, end);
         if (p >= end) break;

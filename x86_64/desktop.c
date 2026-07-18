@@ -415,8 +415,9 @@ void desktop_init(void) {
 
     launch_terminal();
     browser_init();
-    // focus the terminal so keyboard works immediately
+    // Focus terminal for keyboard input, then push browser on top visually
     if (shell_win_id) window_focus(shell_win_id);
+    window_zorder_top(browser_window_id());
 }
 
 void desktop_run(void) {

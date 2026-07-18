@@ -165,6 +165,10 @@ void window_focus(int id) {
     focused_id = id;
     for (int i = 0; i < window_count; i++)
         windows[i].has_focus = (windows[i].id == id);
+    window_zorder_top(id);
+}
+
+void window_zorder_top(int id) {
     int zi = -1;
     for (int i = 0; i < window_count; i++) if (z_order[i] == id) { zi = i; break; }
     if (zi >= 0) {
