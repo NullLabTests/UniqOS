@@ -11,6 +11,14 @@ static int fb_h = 768;
 static int fg = 0x00FFFFFF;
 static int bg = 0x00222244;
 
+// ANSI color palette (dark + bright)
+static const uint32_t ansi_colors[16] = {
+    0x00000000, 0x00CC0000, 0x0000CC00, 0x00CCCC00, // black,red,green,yellow
+    0x000000CC, 0x00CC00CC, 0x0000CCCC, 0x00CCCCCC, // blue,magenta,cyan,white
+    0x00666666, 0x00FF4444, 0x0044FF44, 0x00FFFF44, // bright black,red,green,yellow
+    0x004444FF, 0x00FF44FF, 0x0044FFFF, 0x00FFFFFF, // bright blue,magenta,cyan,white
+};
+
 typedef struct {
     char c;
     uint32_t fg, bg;
@@ -21,11 +29,46 @@ static int cols = 80, rows = 48;
 static int cx = 0, cy = 0;
 static int dirty = 1;
 
+static int ansi_parse(const char **s) {
+    // Parse \033[N[m style sequences
+    const char *p = *s;
+    if (*p != '\033') return 0;
+    p++;
+    if (*p != '[') return 0;
+    p++;
+
+    while (*p) {
+        int val = 0;
+        while (*p >= '0' && *p <= '9') {
+            val = val * 10 + (*p - '0');
+            p++;
+        }
+
+        if (*p == ';') { p++; continue; }
+        if (*p == 'm') {
+            *s = p + 1;
+            if (val == 0) { fg = 0x00FFFFFF; bg = 0x00222244; }
+            else if (val == 1) { /* bold - ignore for now */ }
+            else if (val >= 30 && val <= 37) { fg = ansi_colors[val - 30]; }
+            else if (val >= 40 && val <= 47) { bg = ansi_colors[val - 40]; }
+            else if (val >= 90 && val <= 97) { fg = ansi_colors[8 + (val - 90)]; }
+            else if (val >= 100 && val <= 107) { bg = ansi_colors[8 + (val - 100)]; }
+            return 1;
+        }
+        // Unknown or incomplete sequence, skip
+        while (*p && *p != 'm' && *p != '\033') p++;
+        if (*p == 'm') { *s = p + 1; return 1; }
+        return 0;
+    }
+    return 0;
+}
+
 void fbterm_init(uint32_t *framebuffer, int w, int h) {
     fb = framebuffer; fb_w = w; fb_h = h;
     cols = w / FONT_W; if (cols > 80) cols = 80;
     rows = h / FONT_H; if (rows > 48) rows = 48;
     cx = 0; cy = 0;
+    fg = 0x00FFFFFF; bg = 0x00222244;
     for (int r = 0; r < rows; r++)
         for (int c = 0; c < cols; c++)
             cells[r][c].c = ' ', cells[r][c].fg = fg, cells[r][c].bg = bg;
@@ -37,7 +80,14 @@ void fbterm_putchar(char c) {
     if (c == '\r') { cx = 0; dirty = 1; return; }
     if (c == '\t') { int n = 4 - (cx % 4); while (n--) fbterm_putchar(' '); return; }
     if (c == '\b') { if (cx > 0) cx--; dirty = 1; return; }
-    if ((unsigned char)c < 32) return;
+    if ((unsigned char)c < 32) {
+        if (c == '\033') {
+            const char *p = &c;
+            ansi_parse(&p);
+            dirty = 1;
+        }
+        return;
+    }
     if (cx >= cols) { cx = 0; cy++; if (cy >= rows) fbterm_scroll(); }
     cells[cy][cx].c = c;
     cells[cy][cx].fg = fg;
@@ -45,7 +95,15 @@ void fbterm_putchar(char c) {
     cx++; dirty = 1;
 }
 
-void fbterm_write(const char *s) { while (*s) fbterm_putchar(*s++); }
+void fbterm_write(const char *s) {
+    while (*s) {
+        if (*s == '\033') {
+            ansi_parse(&s);
+            continue;
+        }
+        fbterm_putchar(*s++);
+    }
+}
 
 void fbterm_printf(const char *fmt, ...) {
     va_list ap; va_start(ap, fmt);
