@@ -31,7 +31,8 @@ iso: uniqos.elf
 	mkdir -p iso/boot/grub
 	cp uniqos.elf iso/boot/
 	cp grub.cfg iso/boot/grub/
-	grub-mkrescue -o uniqos.iso iso 2>/dev/null
+	cp -r /usr/lib/grub/i386-pc iso/boot/grub/
+	xorriso -as mkisofs -R -b boot/grub/i386-pc/eltorito.img -no-emul-boot -boot-load-size 4 -boot-info-table -c boot.catalog -o uniqos.iso iso/ 2>/dev/null
 
 run-vbox: iso
 	VBoxManage startvm "UniqOS" 2>/dev/null || \
