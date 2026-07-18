@@ -17,6 +17,7 @@
 #include "vfs.h"
 #include "virtio_net.h"
 #include "dns.h"
+#include "icmp.h"
 #include "serial.h"
 
 #define TOPBAR_H 28
@@ -514,6 +515,7 @@ void desktop_run(void) {
             virtio_poll_all();
             tcp_tick();
             dns_tick();
+            icmp_tick();
             browser_tick();
         }
 

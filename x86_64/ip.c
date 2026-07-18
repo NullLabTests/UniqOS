@@ -5,6 +5,7 @@
 #include "heap.h"
 
 extern void tcp_handle(const uint8_t *data, uint16_t len, ip_t src, ip_t dst);
+extern void icmp_handle(const uint8_t *data, uint16_t len, ip_t src);
 
 static uint16_t ip_id = 0;
 
@@ -79,5 +80,7 @@ void ip_handle(const uint8_t *data, uint16_t len) {
 
     if (proto == IP_PROTO_TCP && total >= ihl) {
         tcp_handle(data + sizeof(eth_hdr_t) + ihl, total - ihl, ip->src, ip->dst);
+    } else if (proto == 1 && total >= ihl) {
+        icmp_handle(data + sizeof(eth_hdr_t) + ihl, total - ihl, ip->src);
     }
 }

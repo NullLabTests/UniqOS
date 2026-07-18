@@ -9,6 +9,7 @@
 
 #define PANIC(msg) do { kprintf("PANIC: %s at %s:%d\n", msg, __FILE__, __LINE__); for(;;) asm("hlt"); } while(0)
 #define assert(cond) do { if(!(cond)) PANIC("assertion failed: " #cond); } while(0)
+#define kassert(cond, fmt, ...) do { if(!(cond)) { kprintf("ASSERT: " fmt " at %s:%d\n", ##__VA_ARGS__, __FILE__, __LINE__); for(;;) asm("hlt"); } } while(0)
 
 void kprintf(const char *fmt, ...);
 void kputchar(char c);

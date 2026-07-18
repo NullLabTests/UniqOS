@@ -5,6 +5,7 @@
 #include "kernel.h"
 #include "pit.h"
 #include "heap.h"
+#include "support.h"
 
 #define DNS_BUF 512
 
