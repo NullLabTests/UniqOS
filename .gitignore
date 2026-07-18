@@ -1,10 +1,21 @@
+# Build artifacts
 *.o
 *.elf
 *.iso
 iso/
 iso_old/
+
+# Development artifacts
 *.pcap
 *.log
 *.deb
-*.png
+
+# Root PNG screenshots (keep only assets/ JPGs for README)
+/screenshot_*.png
+/desktop.png
+
+# Image assets (tracked via assets/ JPGs)
+qa_shots/
+
+# Other
 repo/

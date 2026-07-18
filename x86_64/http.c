@@ -11,6 +11,7 @@ enum http_state {
 };
 
 static enum http_state http_st = HTTP_IDLE;
+static int http_conn = -1;
 static char http_buf[HTTP_BUF];
 static uint16_t http_len = 0;
 static http_cb_t http_callback = 0;
@@ -31,7 +32,8 @@ static void http_tcp_data(const uint8_t *data, uint16_t len) {
 }
 
 static void http_tcp_closed(void) {
-    http_st = HTTP_DONE;
+    http_st = HTTP_IDLE;
+    http_conn = -1;
     if (http_callback) http_callback(http_buf, http_len);
 }
 
@@ -51,7 +53,7 @@ void http_get(ip_t server, uint16_t port, const char *host, const char *path, ht
         http_path[i] = 0;
     } else { http_path[0] = '/'; http_path[1] = 0; }
 
-    tcp_connect(server, port, http_tcp_connected, http_tcp_data, http_tcp_closed);
+    http_conn = tcp_connect(server, port, http_tcp_connected, http_tcp_data, http_tcp_closed);
 }
 
 void http_tick(void) {
@@ -75,12 +77,12 @@ void http_tick(void) {
         while (*conn && pos < 1022) req[pos++] = *conn++;
         req[pos] = 0;
 
-        tcp_send((uint8_t *)req, pos);
+        tcp_send(http_conn, (uint8_t *)req, pos);
         http_st = HTTP_RECEIVING;
     }
     tcp_tick();
 }
 
 int http_busy(void) {
-    return http_st != HTTP_IDLE && http_st != HTTP_DONE;
+    return http_st != HTTP_IDLE;
 }

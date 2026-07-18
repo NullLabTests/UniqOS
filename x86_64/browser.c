@@ -11,8 +11,14 @@
 #include "kernel.h"
 #include "desktop.h"
 #include "support.h"
+#include "html_parse.h"
+#include "css_minimal.h"
+#include "layout.h"
+#include "render.h"
+#include "link_map.h"
 
-#define BROWSER_BUF 8192
+#define BROWSER_BUF 16384
+#define HISTORY_DEPTH 16
 
 static char browser_content[BROWSER_BUF];
 static int browser_len = 0;
@@ -24,10 +30,81 @@ static char browser_url_host[256];
 static char browser_url_path[256];
 static char status_text[64] = "";
 
+static layout_box_t *browser_boxes = 0;
+static int browser_box_count = 0;
+static link_rect_t *browser_links = 0;
+static int browser_link_count = 0;
+
+static char hist_host[HISTORY_DEPTH][256];
+static char hist_path[HISTORY_DEPTH][256];
+static int hist_pos = -1;
+static int hist_count = 0;
+
 static void browser_draw(window_t *win);
-static void clean_html(const char *src, int srclen, char *dst, int *dstlen);
 static void browser_dns_cb(const char *hostname, ip_t addr, int found);
 static void browser_http_cb(const char *response, uint16_t len);
+static void browser_parse_content(void);
+static void push_history(const char *host, const char *path);
+static int browser_handle_click(window_t *win, int mx, int my);
+
+void browser_init(void) {
+    browser_win = window_create(150, 80, 700, 500, "Browser");
+    if (browser_win < 0) return;
+    window_set_draw(browser_win, browser_draw);
+    window_set_onclick(browser_win, browser_handle_click);
+    browser_content[0] = 0;
+    browser_len = 0;
+    strcpy(status_text, "Init");
+    browser_fetch("example.com", "/");
+}
+
+void browser_fetch(const char *host, const char *path) {
+    if (!host) return;
+    if (browser_fetching || browser_dns_pending) return;
+
+    if (browser_boxes) { layout_free_boxes(browser_boxes, browser_box_count); browser_boxes = 0; browser_box_count = 0; }
+    if (browser_links) { link_map_free(browser_links, browser_link_count); browser_links = 0; browser_link_count = 0; }
+
+    strcpy(browser_url_host, host);
+    strcpy(browser_url_path, path);
+    browser_content[0] = 0;
+    browser_len = 0;
+    browser_fetching = 1;
+    strcpy(status_text, "DNS lookup...");
+
+    if (dns_resolve(host, browser_dns_cb) == 0) {
+        browser_dns_pending = 1;
+    } else {
+        strcpy(status_text, "DNS error");
+        browser_fetching = 0;
+    }
+}
+
+void browser_go_back(void) {
+    if (hist_count == 0) return;
+    int target = hist_pos - 1;
+    if (target < 0) return;
+    int old_pos = hist_pos;
+    browser_fetch(hist_host[target], hist_path[target]);
+    hist_pos = target;
+    hist_count = old_pos;
+}
+
+static void push_history(const char *host, const char *path) {
+    if (hist_pos >= 0 && strcmp(hist_host[hist_pos], host) == 0 && strcmp(hist_path[hist_pos], path) == 0)
+        return;
+    hist_pos++;
+    if (hist_pos >= HISTORY_DEPTH) {
+        for (int i = 1; i < HISTORY_DEPTH; i++) {
+            strcpy(hist_host[i-1], hist_host[i]);
+            strcpy(hist_path[i-1], hist_path[i]);
+        }
+        hist_pos = HISTORY_DEPTH - 1;
+    }
+    strcpy(hist_host[hist_pos], host);
+    strcpy(hist_path[hist_pos], path);
+    hist_count = hist_pos + 1;
+}
 
 static void browser_http_cb(const char *response, uint16_t len) {
     if (len > BROWSER_BUF - 1) len = BROWSER_BUF - 1;
@@ -35,7 +112,8 @@ static void browser_http_cb(const char *response, uint16_t len) {
     browser_content[len] = 0;
     browser_len = len;
     browser_fetching = 0;
-    strcpy(status_text, "Done");
+    push_history(browser_url_host, browser_url_path);
+    browser_parse_content();
     kprintf("[browser] HTTP done, %d bytes\n", len);
 }
 
@@ -58,32 +136,31 @@ static void browser_dns_cb(const char *hostname, ip_t addr, int found) {
     }
 }
 
-void browser_init(void) {
-    browser_win = window_create(150, 80, 700, 500, "Browser");
-    if (browser_win < 0) return;
-    window_set_draw(browser_win, browser_draw);
-    browser_content[0] = 0;
-    browser_len = 0;
-    strcpy(status_text, "Init");
-    browser_fetch("example.com", "/");
-}
+static void browser_parse_content(void) {
+    if (browser_len <= 0) return;
 
-void browser_fetch(const char *host, const char *path) {
-    if (browser_fetching || browser_dns_pending) return;
-
-    strcpy(browser_url_host, host);
-    strcpy(browser_url_path, path);
-    browser_content[0] = 0;
-    browser_len = 0;
-    browser_fetching = 1;
-    strcpy(status_text, "DNS lookup...");
-
-    if (dns_resolve(host, browser_dns_cb) == 0) {
-        browser_dns_pending = 1;
-    } else {
-        strcpy(status_text, "DNS error");
-        browser_fetching = 0;
+    html_node_t *dom = html_parse(browser_content, browser_len);
+    if (!dom) {
+        strcpy(status_text, "Parse error");
+        return;
     }
+
+    window_t *win = window_get(browser_win);
+    int viewport_w = win ? (win->w - 24) : 680;
+    if (viewport_w < 100) viewport_w = 100;
+
+    if (browser_boxes) { layout_free_boxes(browser_boxes, browser_box_count); browser_boxes = 0; }
+    if (browser_links) { link_map_free(browser_links, browser_link_count); browser_links = 0; }
+
+    layout_document(dom, viewport_w, &browser_boxes, &browser_box_count);
+
+    int wx = win ? (win->x + 8) : 158;
+    int wy = win ? (win->y + win->titlebar_h + 4) : 108;
+    link_map_build(browser_boxes, browser_box_count, wx, wy, &browser_links, &browser_link_count);
+
+    html_free(dom);
+    strcpy(status_text, "Loaded");
+    kprintf("[browser] %d layout boxes, %d links\n", browser_box_count, browser_link_count);
 }
 
 void browser_tick(void) {
@@ -92,150 +169,53 @@ void browser_tick(void) {
 
 int browser_window_id(void) { return browser_win; }
 
-static void clean_html(const char *src, int srclen, char *dst, int *dstlen) {
-    *dstlen = 0;
-    int in_script = 0;
-    int in_style = 0;
-    int skip_nl = 0;
+int browser_handle_click(window_t *win, int mx, int my) {
+    (void)win;
+    if (browser_fetching || browser_dns_pending) return 0;
+    if (!browser_links || browser_link_count <= 0) return 0;
 
-    for (int i = 0; i < srclen && *dstlen < BROWSER_BUF - 4; i++) {
-        char c = src[i];
-
-        if (c == '<') {
-            if (i + 7 < srclen && src[i+1] == 's' && src[i+2] == 'c' && src[i+3] == 'r' &&
-                src[i+4] == 'i' && src[i+5] == 'p' && src[i+6] == 't') {
-                in_script = 1;
-                while (i < srclen && src[i] != '>') i++;
-                continue;
-            }
-            if (i + 5 < srclen && src[i+1] == 's' && src[i+2] == 't' && src[i+3] == 'y' &&
-                src[i+4] == 'l' && src[i+5] == 'e') {
-                in_style = 1;
-                while (i < srclen && src[i] != '>') i++;
-                continue;
-            }
-            if (in_script || in_style) {
-                if (i + 1 < srclen && src[i+1] == '/') {
-                    int j = i + 2;
-                    while (j < srclen && src[j] != '>') j++;
-                    if (j < srclen) {
-                        int taglen = j - (i + 2);
-                        if (taglen == 6 && memcmp(src + i + 2, "script", 6) == 0) in_script = 0;
-                        if (taglen == 5 && memcmp(src + i + 2, "style", 5) == 0) in_style = 0;
-                    }
+    char *url = 0;
+    if (link_map_click(browser_links, browser_link_count, mx, my, &url)) {
+        if (url) {
+            char host[256], path[256];
+            strcpy(host, url);
+            char *slash = host;
+            if (strncmp(host, "http://", 7) == 0) slash = host + 7;
+            else if (strncmp(host, "https://", 8) == 0) slash = host + 8;
+            char *ps = slash;
+            while (*ps && *ps != '/') ps++;
+            if (*ps == '/') { *ps = 0; strcpy(path, ps + 1); }
+            else { path[0] = '/'; path[1] = 0; }
+            strcpy(host, slash);
+            if (host[0] == 0) {
+                strcpy(host, browser_url_host);
+                strcpy(path, url);
+                if (path[0] != '/') {
+                    char tmp[256];
+                    strcpy(tmp, browser_url_path);
+                    char *last = tmp + strlen(tmp);
+                    while (last > tmp && *last != '/') last--;
+                    if (*last == '/') last[1] = 0;
+                    strcat(tmp, url);
+                    strcpy(path, tmp);
                 }
-                while (i < srclen && src[i] != '>') i++;
-                continue;
             }
-
-            if (i + 3 < srclen && src[i+1] == 'b' && src[i+2] == 'r') {
-                dst[*dstlen] = '\n'; (*dstlen)++;
-                skip_nl = 0;
-                while (i < srclen && src[i] != '>') i++;
-                continue;
+            if (strcmp(host, browser_url_host) == 0 || host[0] != 0) {
+                browser_fetch(host, path);
+                return 1;
             }
-            if (i + 3 < srclen && ((src[i+1] == 'p' && src[i+2] == '>') ||
-                (src[i+1] == 'd' && src[i+2] == 'i' && src[i+3] == 'v'))) {
-                if (!skip_nl) { dst[*dstlen] = '\n'; (*dstlen)++; }
-                while (i < srclen && src[i] != '>') i++;
-                skip_nl = 1;
-                continue;
-            }
-            if (i + 4 < srclen && src[i+1] == '/' && src[i+2] == 'p' && src[i+3] == '>') {
-                if (!skip_nl) { dst[*dstlen] = '\n'; (*dstlen)++; }
-                i += 3;
-                skip_nl = 1;
-                continue;
-            }
-            if (i + 4 < srclen && src[i+1] == 'h' && src[i+2] >= '1' && src[i+2] <= '6' && src[i+3] == '>') {
-                dst[*dstlen] = '\n'; (*dstlen)++;
-                skip_nl = 0;
-                i += 3;
-                continue;
-            }
-            if (i + 5 < srclen && src[i+1] == '/' && src[i+2] == 'h' && src[i+3] >= '1' && src[i+3] <= '6' && src[i+4] == '>') {
-                dst[*dstlen] = '\n'; (*dstlen)++;
-                i += 4;
-                skip_nl = 0;
-                continue;
-            }
-            if (i + 3 < srclen && src[i+1] == 'l' && src[i+2] == 'i' && src[i+3] == '>') {
-                dst[*dstlen] = '\n'; (*dstlen)++;
-                dst[*dstlen] = ' '; (*dstlen)++;
-                dst[*dstlen] = '-'; (*dstlen)++;
-                dst[*dstlen] = ' '; (*dstlen)++;
-                i += 3;
-                skip_nl = 0;
-                continue;
-            }
-            if (i + 4 < srclen && (src[i+1] == 't' && src[i+2] == 'd' && src[i+3] == '>')) {
-                dst[*dstlen] = ' '; (*dstlen)++;
-                i += 3;
-                skip_nl = 0;
-                continue;
-            }
-            if (i + 4 < srclen && src[i+1] == 't' && src[i+2] == 'r' && src[i+3] == '>') {
-                dst[*dstlen] = '\n'; (*dstlen)++;
-                i += 3;
-                skip_nl = 0;
-                continue;
-            }
-            if (i + 4 < srclen && src[i+1] == 't' && src[i+2] == 'h' && src[i+3] == '>') {
-                dst[*dstlen] = ' '; (*dstlen)++;
-                i += 3;
-                skip_nl = 0;
-                continue;
-            }
-            // <a> tags - note for future link handling
-            // <b>, <strong>, <em>, <span>, etc. - strip silently
-
-            while (i < srclen && src[i] != '>') i++;
-            skip_nl = 0;
-            continue;
         }
-
-        if (in_script || in_style) continue;
-
-        if (c == '&') {
-            if (i+5 < srclen && src[i+1]=='a' && src[i+2]=='m' && src[i+3]=='p' && src[i+4]==';') {
-                dst[*dstlen] = '&'; (*dstlen)++; i += 4; continue;
-            }
-            if (i+4 < srclen && src[i+1]=='l' && src[i+2]=='t' && src[i+3]==';') {
-                i += 3; continue;
-            }
-            if (i+4 < srclen && src[i+1]=='g' && src[i+2]=='t' && src[i+3]==';') {
-                i += 3; continue;
-            }
-            if (i+6 < srclen && src[i+1]=='q' && src[i+2]=='u' && src[i+3]=='o' && src[i+4]=='t' && src[i+5]==';') {
-                dst[*dstlen] = '"'; (*dstlen)++; i += 5; continue;
-            }
-            if (i+6 < srclen && src[i+1]=='n' && src[i+2]=='b' && src[i+3]=='s' && src[i+4]=='p' && src[i+5]==';') {
-                dst[*dstlen] = ' '; (*dstlen)++; i += 5; continue;
-            }
-            while (i < srclen && src[i] != ';') i++;
-            continue;
-        }
-
-        if (c == '\n' || c == '\r') {
-            dst[*dstlen] = ' '; (*dstlen)++;
-            continue;
-        }
-        if (c == '\t') continue;
-
-        dst[*dstlen] = c; (*dstlen)++;
-        skip_nl = 0;
     }
-    dst[*dstlen] = 0;
+    return 0;
 }
 
 static void browser_draw(window_t *win) {
     int wx = win->x, wy = win->y;
     int w = win->w, h = win->h;
-
-    display_fill_rect(wx + 8, wy + win->titlebar_h + 4, w - 16, h - win->titlebar_h - 8, 0x00101010);
-
     int y = wy + win->titlebar_h + 8;
     int x = wx + 12;
+
+    display_fill_rect(wx + 8, wy + win->titlebar_h + 4, w - 16, h - win->titlebar_h - 8, 0x00101010);
 
     if (browser_fetching || browser_dns_pending) {
         const char *msg = status_text[0] ? status_text : "Loading...";
@@ -251,42 +231,12 @@ static void browser_draw(window_t *win) {
         return;
     }
 
-    char text[BROWSER_BUF];
-    int text_len;
-    clean_html(browser_content, browser_len, text, &text_len);
-
-    int max_lines = (h - win->titlebar_h - 16) / 16;
-    int max_chars = (w - 24) / 8;
-    if (max_chars < 1) max_chars = 1;
-
-    int line = 0;
-    int col = 0;
-
-    // Wrap long lines
-    for (int i = 0; i < text_len && line < max_lines; i++) {
-        char c = text[i];
-
-        if (c == '\n') {
-            line++;
-            col = 0;
-            y += 16;
-            continue;
-        }
-
-        if (c == ' ' && col == 0) continue;
-
-        display_put_char(x + col * 8, y, c, 0x00CCCCCC, 0x00101010);
-        col++;
-
-        if (col >= max_chars) {
-            line++;
-            col = 0;
-            y += 16;
-        }
-    }
-
-    if (text_len == 0) {
-        const char *msg = "(empty)";
+    if (browser_boxes && browser_box_count > 0) {
+        int cw = w - 16, ch = h - win->titlebar_h - 8;
+        int cx = wx + 8, cy = wy + win->titlebar_h + 4;
+        render_boxes(browser_boxes, browser_box_count, cx, cy, cw, ch);
+    } else {
+        const char *msg = status_text[0] ? status_text : "(empty)";
         for (int i = 0; msg[i]; i++)
             display_put_char(x + i * 8, y, msg[i], 0x00AA5555, 0x00101010);
     }

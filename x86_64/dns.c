@@ -81,7 +81,7 @@ static void dns_connected(void) {
     buf[pos++] = 0x00; buf[pos++] = 0x01;
     buf[pos++] = 0x00; buf[pos++] = 0x01;
 
-    tcp_send(buf, pos);
+    tcp_send(dns_conn, buf, pos);
 }
 
 static void dns_data(const uint8_t *data, uint16_t len) {

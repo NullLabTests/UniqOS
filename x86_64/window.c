@@ -141,6 +141,7 @@ int window_create(int x, int y, int w, int h, const char *title) {
     win->user_data = 0;
     win->draw = 0;
     win->on_key = 0;
+    win->on_click = 0;
     win->on_close = 0;
     focused_id = id;
     z_order[window_count] = id;
@@ -190,6 +191,9 @@ void window_set_draw(int id, void (*draw)(window_t *)) {
 }
 void window_set_onkey(int id, void (*onkey)(window_t *, char)) {
     window_t *win = window_get(id); if (win) win->on_key = onkey;
+}
+void window_set_onclick(int id, int (*onclick)(window_t *, int, int)) {
+    window_t *win = window_get(id); if (win) win->on_click = onclick;
 }
 void window_set_onclose(int id, void (*onclose)(window_t *)) {
     window_t *win = window_get(id); if (win) win->on_close = onclose;
@@ -303,6 +307,8 @@ int window_handle_click(int mx, int my, int buttons) {
             } else if (mx >= w->x + w->w - 12 && my >= w->y + w->h - 12) {
                 w->resize_mode = 1;
                 w->resize_edge = 3;
+            } else {
+                if (w->on_click) w->on_click(w, mx, my);
             }
             return 1;
         }

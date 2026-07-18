@@ -26,6 +26,7 @@ typedef struct window {
     void *user_data;
     void (*draw)(struct window *w);
     void (*on_key)(struct window *w, char c);
+    int (*on_click)(struct window *w, int mx, int my);
     void (*on_close)(struct window *w);
 } window_t;
 
@@ -37,6 +38,7 @@ void window_resize(int id, int w, int h);
 void window_focus(int id);
 void window_set_draw(int id, void (*draw)(window_t *));
 void window_set_onkey(int id, void (*onkey)(window_t *, char));
+void window_set_onclick(int id, int (*onclick)(window_t *, int, int));
 void window_set_onclose(int id, void (*onclose)(window_t *));
 window_t *window_get(int id);
 window_t *window_get_by_userdata(void *data);

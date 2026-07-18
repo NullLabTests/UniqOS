@@ -260,6 +260,14 @@ void virtio_send(const uint8_t *data, uint16_t len) {
 
     csr_write16(CSR0, 0x004A); // INEA+TDMD+STRT
 
+    // Wait for NIC to consume descriptor (OWN bit clears)
+    for (int i = 0; i < 50000; i++) {
+        asm volatile("clflush (%0)" :: "r"(&tx_ring[t].flags) : "memory");
+        asm volatile("mfence" ::: "memory");
+        if (!(tx_ring[t].flags & (1 << 31))) break;
+        asm volatile("pause");
+    }
+
     tx_cur = (t + 1) % TX_RING;
 }
 

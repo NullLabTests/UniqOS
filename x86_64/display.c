@@ -149,3 +149,18 @@ void display_put_char(int x, int y, char c, uint32_t fg, uint32_t bg) {
         }
     }
 }
+
+void display_put_char_styled(int x, int y, char c, uint32_t fg, uint32_t bg, int bold, int italic) {
+    if (!fb_initialized) return;
+    if (c < 0 || c > 127) return;
+    for (int row = 0; row < 16; row++) {
+        uint8_t bits = font8x16_basic[(int)c][row];
+        if (bold) bits |= bits >> 1;
+        if (italic) bits = (bits << 1) | (bits >> 7);
+        for (int col = 0; col < 8; col++) {
+            int px = x + col, py = y + row;
+            if (px < 0 || px >= fb_width || py < 0 || py >= fb_height) continue;
+            back_buffer[py * fb_width + px] = (bits & (0x80 >> col)) ? fg : bg;
+        }
+    }
+}

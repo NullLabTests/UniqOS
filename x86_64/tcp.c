@@ -32,8 +32,6 @@ static struct {
     void *user_data;
 } tcp_conns[TCP_MAX_CONN];
 
-static int tcp_cur_conn = -1;
-
 static uint16_t tcp_checksum(const ip_t *src, const ip_t *dst,
                               uint8_t proto, const uint16_t *data, int len) {
     struct {
@@ -82,7 +80,6 @@ static void conn_send_segment(int ci, uint8_t flags, uint32_t seq, uint32_t ack,
     tcp->checksum = tcp_checksum(&net_ip, &tcp_conns[ci].remote, IP_PROTO_TCP,
                                   (uint16_t *)seg, hdrlen + paylen);
 
-    tcp_cur_conn = ci;
     ip_send(tcp_conns[ci].remote, IP_PROTO_TCP, seg, hdrlen + paylen);
 }
 
@@ -112,7 +109,6 @@ int tcp_connect(ip_t dst, uint16_t port,
     tcp_conns[ci].retry_tick = pit_get_tick();
     tcp_conns[ci].retry_data = 0;
 
-    tcp_cur_conn = ci;
     conn_send_segment(ci, TCP_SYN, tcp_conns[ci].snd_seq, 0, 0, 0);
     tcp_conns[ci].snd_seq++;
     return ci;
@@ -127,9 +123,8 @@ static int conn_by_port(uint16_t dport, uint16_t sport) {
     return -1;
 }
 
-void tcp_send(const uint8_t *data, uint16_t len) {
-    if (tcp_cur_conn < 0) return;
-    int ci = tcp_cur_conn;
+void tcp_send(int ci, const uint8_t *data, uint16_t len) {
+    if (ci < 0 || ci >= TCP_MAX_CONN || !tcp_conns[ci].used) return;
     if (tcp_conns[ci].state != TCP_ESTABLISHED) return;
     if (len > TCP_BUF_SIZE) len = TCP_BUF_SIZE;
     memcpy(tcp_conns[ci].tx_buf, data, len);
@@ -143,9 +138,8 @@ void tcp_send(const uint8_t *data, uint16_t len) {
     tcp_conns[ci].retry_tick = pit_get_tick();
 }
 
-void tcp_close(void) {
-    if (tcp_cur_conn < 0) return;
-    int ci = tcp_cur_conn;
+void tcp_close(int ci) {
+    if (ci < 0 || ci >= TCP_MAX_CONN || !tcp_conns[ci].used) return;
     if (tcp_conns[ci].state == TCP_ESTABLISHED) {
         tcp_conns[ci].state = TCP_FIN_WAIT1;
         conn_send_segment(ci, TCP_FIN | TCP_ACK, tcp_conns[ci].snd_seq, tcp_conns[ci].rcv_seq, 0, 0);
@@ -183,7 +177,6 @@ void tcp_handle(const uint8_t *data, uint16_t len, ip_t src, ip_t dst) {
     if (tcp_conns[ci].state == TCP_SYN_SENT && (flags & TCP_SYN) && (flags & TCP_ACK)) {
         tcp_conns[ci].rcv_seq = seq + 1;
         tcp_conns[ci].state = TCP_ESTABLISHED;
-        tcp_cur_conn = ci;
         conn_send_segment(ci, TCP_ACK, tcp_conns[ci].snd_seq, tcp_conns[ci].rcv_seq, 0, 0);
         if (tcp_conns[ci].on_connected) tcp_conns[ci].on_connected();
         return;
@@ -198,13 +191,11 @@ void tcp_handle(const uint8_t *data, uint16_t len, ip_t src, ip_t dst) {
         }
         if (paylen > 0 && flags & TCP_ACK) {
             tcp_conns[ci].rcv_seq = seq + paylen;
-            tcp_cur_conn = ci;
             conn_send_segment(ci, TCP_ACK, tcp_conns[ci].snd_seq, tcp_conns[ci].rcv_seq, 0, 0);
             if (tcp_conns[ci].on_data) tcp_conns[ci].on_data(payload, paylen);
         }
         if (flags & TCP_FIN) {
             tcp_conns[ci].rcv_seq = seq + 1;
-            tcp_cur_conn = ci;
             conn_send_segment(ci, TCP_ACK | TCP_FIN, tcp_conns[ci].snd_seq, tcp_conns[ci].rcv_seq, 0, 0);
             tcp_conns[ci].snd_seq++;
             tcp_conns[ci].state = TCP_CLOSED;
@@ -227,7 +218,6 @@ void tcp_handle(const uint8_t *data, uint16_t len, ip_t src, ip_t dst) {
 
     if (tcp_conns[ci].state == TCP_FIN_WAIT2) {
         if (flags & TCP_FIN) {
-            tcp_cur_conn = ci;
             conn_send_segment(ci, TCP_ACK, tcp_conns[ci].snd_seq, seq + 1, 0, 0);
             tcp_conns[ci].state = TCP_CLOSED;
             tcp_conns[ci].used = 0;
@@ -258,7 +248,6 @@ void tcp_tick(void) {
             if (now - tcp_conns[ci].retry_tick >= delay) {
                 tcp_conns[ci].retry_tick = now;
                 tcp_conns[ci].retry_count++;
-                tcp_cur_conn = ci;
                 conn_send_segment(ci, TCP_PSH | TCP_ACK,
                                    tcp_conns[ci].snd_una,
                                    tcp_conns[ci].rcv_seq,

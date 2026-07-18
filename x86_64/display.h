@@ -11,3 +11,4 @@ int display_get_width(void);
 int display_get_height(void);
 uint32_t *display_get_buffer(void);
 void display_put_char(int x, int y, char c, uint32_t fg, uint32_t bg);
+void display_put_char_styled(int x, int y, char c, uint32_t fg, uint32_t bg, int bold, int italic);

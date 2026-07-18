@@ -15,11 +15,12 @@ OBJ_KERNEL := boot.o interrupts.o kernel.o gdt.o idt.o pic.o pit.o pmm.o vmm.o \
               heap.o scheduler.o syscall.o support.o serial.o
 OBJ_DRIVERS := display.o keyboard.o mouse.o pci.o vga.o virtio_net.o
 OBJ_NET := net.o arp.o ip.o tcp.o http.o dns.o icmp.o
+OBJ_HTML := html_parse.o css_minimal.o layout.o render.o link_map.o
 OBJ_VFS := vfs.o
 OBJ_APPS := desktop.o window.o fbterm.o font.o timefmt.o shell.o browser.o \
             editor.o fileman.o sysmon.o
 
-OBJ := $(OBJ_KERNEL) $(OBJ_DRIVERS) $(OBJ_NET) $(OBJ_VFS) $(OBJ_APPS)
+OBJ := $(OBJ_KERNEL) $(OBJ_DRIVERS) $(OBJ_NET) $(OBJ_HTML) $(OBJ_VFS) $(OBJ_APPS)
 
 .PHONY: all debug iso clean test
 

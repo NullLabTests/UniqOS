@@ -10,7 +10,7 @@ int tcp_connect(ip_t dst, uint16_t port,
                 tcp_connected_cb_t on_connected,
                 tcp_data_cb_t on_data,
                 tcp_closed_cb_t on_closed);
-void tcp_send(const uint8_t *data, uint16_t len);
-void tcp_close(void);
+void tcp_send(int ci, const uint8_t *data, uint16_t len);
+void tcp_close(int ci);
 void tcp_handle(const uint8_t *data, uint16_t len, ip_t src, ip_t dst);
 void tcp_tick(void);
