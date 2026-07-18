@@ -10,7 +10,7 @@ CFLAGS := -target x86_64-none-elf -ffreestanding -nostdlib -fno-stack-protector 
 ASFLAGS := --64
 LDFLAGS := -T link.ld -nostdlib -static
 
-SRC_C := $(filter-out terminal.c display_test.c e1000.c, $(wildcard *.c))
+SRC_C := $(filter-out terminal.c display_test.c, $(wildcard *.c))
 OBJ   := $(SRC_C:.c=.o) boot.o interrupts.o
 
 .PHONY: all iso run-vbox run-qemu clean

@@ -16,6 +16,7 @@
 #include "timefmt.h"
 #include "vfs.h"
 #include "virtio_net.h"
+#include "dns.h"
 #include "serial.h"
 
 #define TOPBAR_H 28
@@ -41,19 +42,41 @@ static int active_launchers[6];
 static int ico_count = 6;
 
 static void draw_background(void) {
-    for (int y = TOPBAR_H; y < fb_h; y++) {
-        uint32_t c;
-        if (y < fb_h / 3) {
-            int t = (y - TOPBAR_H) * 255 / (fb_h / 3);
-            int r = 20 + t * 4 / 255;
-            int g = 30 + t * 20 / 255;
-            int b = 50 + t * 30 / 255;
-            c = 0x00000000 | (r << 16) | (g << 8) | b;
-        } else {
-            c = 0x001C1C3A;
+    for (int y = TOPBAR_H; y < fb_h - 40; y++) {
+        int ry = (y - TOPBAR_H) * 60 / (fb_h - TOPBAR_H - 40);
+        int gy = (y - TOPBAR_H) * 90 / (fb_h - TOPBAR_H - 40);
+        int by = (y - TOPBAR_H) * 130 / (fb_h - TOPBAR_H - 40);
+        for (int x = 0; x < fb_w; x++) {
+            int r = 5 + ry + x * 15 / fb_w;
+            int g = 10 + gy + x * 25 / fb_w;
+            int b = 20 + by + x * 35 / fb_w;
+            fb_buf[y * fb_w + x] = (r << 16) | (g << 8) | b;
         }
+    }
+}
+
+static void draw_bottom_panel(void) {
+    int py = fb_h - 40;
+    for (int y = py; y < fb_h; y++)
         for (int x = 0; x < fb_w; x++)
-            fb_buf[y * fb_w + x] = c;
+            fb_buf[y * fb_w + x] = 0x00222A3E;
+    for (int x = 0; x < fb_w; x++)
+        fb_buf[py * fb_w + x] = 0x00445577;
+    extern const uint8_t font8x16_basic[128][16];
+    // Clock on right of bottom panel
+    uint64_t ms = timer_get_ms();
+    const char *time_str = timefmt_clock(ms);
+    int tx = fb_w - 120;
+    int ty = fb_h - 14;
+    for (int i = 0; time_str[i]; i++) {
+        const uint8_t *g = font8x16_basic[(unsigned char)time_str[i]];
+        int bx = tx + i * 8;
+        for (int row = 0; row < 14; row++) {
+            uint8_t bits = g[row];
+            for (int col = 0; col < 8; col++)
+                if (bits & (0x80 >> col))
+                    fb_buf[(ty + row) * fb_w + (bx + col)] = 0x00AACCDD;
+        }
     }
 }
 
@@ -451,6 +474,7 @@ void desktop_run(void) {
         if (virtio_present) {
             virtio_poll_all();
             tcp_tick();
+            dns_tick();
             browser_tick();
         }
 
@@ -464,6 +488,7 @@ void desktop_run(void) {
 
         if (redraw) {
             draw_background();
+            draw_bottom_panel();
             draw_desktop_icons();
             window_render_all();
             draw_topbar();
