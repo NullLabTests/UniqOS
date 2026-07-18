@@ -282,6 +282,11 @@ This project is shared as a learning resource and inspiration. Feel free to stud
 ---
 
 <p align="center">
+  <strong>⚠️ WORK IN PROGRESS</strong><br>
+  <em>This project is under active construction — it is a research tool for testing the limits of current AI agent swarms and frameworks. Nothing here is stable or final. Everything is an experiment.</em>
+</p>
+
+<p align="center">
   <strong>Built in the open. For the curious. For the future.</strong><br>
   <em>"The best way to predict the future is to build it."</em>
 </p>
