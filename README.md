@@ -74,7 +74,9 @@ A graphical file manager that lists files in the VFS with colored titlebar and p
 
 ## Video Demo
 
-A keyboard-driven walkthrough of the UniqOS desktop will be added here soon.
+A keyboard-driven walkthrough of the UniqOS desktop — boot, shell, browser, editor, and file manager.
+
+<video src="assets/demo.mp4" controls width="640"></video>
 
 ---
 
@@ -251,12 +253,8 @@ UniqOS/
 │   ├── sysmon.c          # System monitor app
 │   ├── vfs.c             # Virtual filesystem
 │   └── support.c         # String/memory utilities
-├── OPENCODE_BROWSER_PROMPT.md  # Full styled-browser spec used to guide AI implementation
 └── README.md
 ```
-
-## Reproduce / Extend
-The full browser specification used to guide AI implementation is in [`OPENCODE_BROWSER_PROMPT.md`](OPENCODE_BROWSER_PROMPT.md).
 
 ## License
 MIT License — see [LICENSE](LICENSE) for details.
