@@ -74,7 +74,7 @@ A graphical file manager that lists files in the VFS with colored titlebar and p
 
 ## Video Demo
 
-A keyboard-driven walkthrough of the UniqOS desktop — boot, shell, browser, editor, and file manager.
+The UniqOS desktop in action — system monitor and GUI environment.
 
 <video src="assets/demo.mp4" controls width="640"></video>
 
