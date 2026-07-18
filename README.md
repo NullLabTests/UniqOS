@@ -76,7 +76,7 @@ A graphical file manager that lists files in the VFS with colored titlebar and p
 
 Quick clip showing the system monitor and GUI in action (more comprehensive walkthrough coming soon).
 
-<video src="assets/demo.mp4" controls width="640"></video>
+[![UniqOS demo clip](assets/01_boot.jpg)](assets/demo.mp4)
 
 ---
 
