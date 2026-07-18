@@ -1,0 +1,10 @@
+*.o
+*.elf
+*.iso
+iso/
+iso_old/
+*.pcap
+*.log
+*.deb
+*.png
+repo/

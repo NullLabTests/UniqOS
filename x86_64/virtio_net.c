@@ -30,8 +30,8 @@
 #define CSR76 76
 #define CSR78 78
 
-#define RX_RING 32
-#define TX_RING 16
+#define RX_RING 16
+#define TX_RING 8
 #define BUF_SZ  1544
 
 static uint16_t iobase = 0;
@@ -142,7 +142,7 @@ int virtio_init(void) {
     // word 6-9: ladrf1-4
     // dword at bytes 20: RDRA | bytes 24: TDRA
     ib[0] = 0x0000;
-    ib[1] = (0 << 0) | (4 << 4) | (0 << 8) | (3 << 12);  // rlen=4 (32 entries), tlen=3
+    ib[1] = (0 << 0) | (4 << 4) | (0 << 8) | (3 << 12);  // rlen=4 (16 entries), tlen=3
     ib[2] = virtio_mac[0] | (virtio_mac[1] << 8);
     ib[3] = virtio_mac[2] | (virtio_mac[3] << 8);
     ib[4] = virtio_mac[4] | (virtio_mac[5] << 8);
@@ -232,82 +232,12 @@ int virtio_init(void) {
     if (lnkst & 0x40)
         kprintf("[pcnet] link UP after %d polls\n", i);
     else
-        kprintf("[pcnet] link still down after 100 polls, will retry in virtio_poll_all\n");
+        kprintf("[pcnet] link still down, will retry in virtio_poll_all\n");
 
     virtio_present = 1;
     kprintf("[pcnet] initialized\n");
     kprintf("[pcnet] CSR12=0x%x CSR13=0x%x CSR14=0x%x (PADR)\n",
         csr_read16(CSR12), csr_read16(CSR13), csr_read16(CSR14));
-    kprintf("[pcnet] CSR76(RCVRL)=%d CSR78(XMTRL)=%d\n",
-        csr_read16(76), csr_read16(78));
-
-    // ---- loopback test ----
-    kprintf("[pcnet] === LOOPBACK TEST ===\n");
-    kprintf("[pcnet] BEFORE: CRST=0x%x RCVRC=%d CRBC=%d CSR15=0x%x BCR4=0x%x\n",
-        csr_read16(41), csr_read16(72), csr_read16(40),
-        csr_read16(CSR15), bcr_read(4));
-
-    // Dump all TX descriptors and ring state
-    for (int i = 0; i < 8; i++)
-        kprintf(" TXdesc[%d]: base=0x%x flags=0x%x status=0x%x\n", i,
-            tx_ring[i].base, tx_ring[i].flags, tx_ring[i].status);
-    kprintf(" TX ring phys=0x%x GCTDRA check: IB[24]=0x%x\n",
-        tx_ring_phys, *(uint32_t*)((uint8_t*)(uintptr_t)ib_phys + 24));
-
-    // Dump RX descriptors 0 and 15
-    kprintf(" RXdesc[0]:  base=0x%x flags=0x%x status=0x%x\n",
-        rx_ring[0].base, rx_ring[0].flags, rx_ring[0].status);
-    kprintf(" RXdesc[15]: base=0x%x flags=0x%x status=0x%x\n",
-        rx_ring[15].base, rx_ring[15].flags, rx_ring[15].status);
-
-    kprintf("[pcnet] setting CSR15 LOOP=0x0004...\n");
-    csr_write16(CSR15, 0x0004);
-
-    kprintf("[pcnet] BEFORE TX: CRST=0x%x RCVRC=%d BCR4=0x%x\n",
-        csr_read16(41), csr_read16(72), bcr_read(4));
-
-    uint8_t test_pkt[64];
-    memset(test_pkt, 0, 64);
-    test_pkt[0] = 0x08; test_pkt[1] = 0x00;
-    test_pkt[2] = 0x27; test_pkt[3] = 0x2b;
-    test_pkt[4] = 0x7f; test_pkt[5] = 0x1b;
-    test_pkt[6] = 0x08; test_pkt[7] = 0x00;
-    test_pkt[8] = 0x27; test_pkt[9] = 0x2b;
-    test_pkt[10] = 0x7f; test_pkt[11] = 0x1b;
-    test_pkt[12] = 0x08; test_pkt[13] = 0x06;
-    virtio_send(test_pkt, 60);
-
-    kprintf("[pcnet] AFTER TX: CRST=0x%x RCVRC=%d BCR4=0x%x CSR15=0x%x\n",
-        csr_read16(41), csr_read16(72), bcr_read(4), csr_read16(CSR15));
-
-    csr_write16(CSR15, 0x0000);
-
-    asm volatile("wbinvd" ::: "memory");
-
-    int found_rx = 0;
-    for (int i = 0; i < 16; i++) {
-        if (!(rx_ring[i].flags & (1 << 31))) {
-            kprintf("[pcnet] RX desc %d owned by host! flags=0x%x status=0x%x base=0x%x\n",
-                i, rx_ring[i].flags, rx_ring[i].status, rx_ring[i].base);
-            found_rx = 1;
-        }
-    }
-    if (!found_rx)
-        kprintf("[pcnet] ALL 16 RX descriptors still OWN=1\n");
-
-    kprintf("[pcnet] RX buf[15] bytes 0-15: ");
-    for (int i = 0; i < 16; i++) {
-        uint8_t b = ((uint8_t*)rx_bufs[15])[i];
-        kprintf(" ");
-        if (b < 16) kprintf("0");
-        kprintf("%x", b);
-    }
-    kprintf("\n");
-
-    kprintf("[pcnet] AFTER: CRST=0x%x RCVRC=%d CRBC=%d CSR0=0x%x CSR4=0x%x CSR5=0x%x\n",
-        csr_read16(41), csr_read16(72), csr_read16(40),
-        csr_read16(CSR0), csr_read16(CSR4), csr_read16(5));
-    kprintf("[pcnet] === LOOPBACK TEST END ===\n");
     return 0;
 }
 
@@ -322,78 +252,28 @@ void virtio_send(const uint8_t *data, uint16_t len) {
     tx_ring[t].flags = (1 << 31) | (1 << 25) | (1 << 24) | (0xF << 12) | ((4096 - len) & 0xFFF);
     tx_ring[t].status = 0;
     tx_ring[t].reserved = 0;
+    // Flush packet data and descriptor to RAM so the VMM sees them.
+    for (int i = 0; i < len; i += 64)
+        asm volatile("clflush (%0)" :: "r"(tx_buf + i) : "memory");
+    asm volatile("clflush (%0)" :: "r"(&tx_ring[t]) : "memory");
     asm volatile("mfence" ::: "memory");
-
-    static int tx_debug;
-    if (tx_debug++ < 2) {
-        kprintf("[pcnet] TX desc t=%d base=0x%x flags=0x%x len=%d\n",
-            t, tx_ring[t].base, tx_ring[t].flags, len);
-        kprintf("[pcnet] TX pkt: %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x\n",
-            data[0], data[1], data[2], data[3], data[4], data[5],
-            data[6], data[7], data[8], data[9], data[10], data[11],
-            data[12], data[13], data[14], data[15]);
-    }
 
     csr_write16(CSR0, 0x004A); // INEA+TDMD+STRT
 
-    int tx_done = 0;
-    for (volatile int i = 0; i < 1000000; i++) {
-        if (!(tx_ring[t].flags & (1 << 31))) { tx_done = 1; break; }
-        asm volatile("pause");
-    }
-
-    uint16_t csr5 = csr_read16(CSR5);
-    if (!tx_done)
-        kprintf("[pcnet] TX timeout! CSR5=0x%x\n", csr5);
-    else {
-        uint32_t st = tx_ring[t].status;
-        if (st & (0xFC000000))
-            kprintf("[pcnet] TX error! status=0x%x flags=0x%x CSR5=0x%x\n",
-                st, tx_ring[t].flags, csr5);
-        else if (tx_debug < 5)
-            kprintf("[pcnet] TX ok desc %d status=0x%x\n", t, st);
-    }
-
     tx_cur = (t + 1) % TX_RING;
-
-    virtio_poll_all();
-}
-
-void csr_dump(void) {
-    uint16_t csr0 = csr_read16(CSR0);
-    uint16_t csr5 = csr_read16(CSR5);
-    uint16_t csr112 = csr_read16(112);
-    uint16_t csr76 = csr_read16(76);
-    uint16_t csr78 = csr_read16(78);
-    uint16_t lnkst = bcr_read(4);
-    uint16_t bcr20 = bcr_read(20);
-    kprintf("[virtio] CSR0=0x%x CSR5=0x%x MISS=%d RLEN=%d TLEN=%d LNKST=%d SWS=%d\n",
-        csr0, csr5, csr112, csr76, csr78, lnkst & 1, bcr20);
-    kprintf("[virtio] RX ring[0]: base=0x%x flags=0x%x status=0x%x\n",
-        rx_ring[0].base, rx_ring[0].flags, rx_ring[0].status);
 }
 
 void virtio_poll_all(void) {
     if (!virtio_present || !rx_cb) return;
 
-    static int dump_done;
-    if (!dump_done) {
-        dump_done = 1;
-        for (int i = 0; i < RX_RING; i++)
-            kprintf("[virtio] RX[%d] base=0x%x flags=0x%x status=0x%x\n",
-                i, rx_ring[i].base, rx_ring[i].flags, rx_ring[i].status);
-    }
-
-    static int rx_poll_dbg;
     while (1) {
+        asm volatile("clflush (%0)" :: "r"(&rx_ring[rx_cur].flags) : "memory");
+        asm volatile("mfence" ::: "memory");
         if (rx_ring[rx_cur].flags & (1 << 31))
             break;
 
         uint32_t flags = rx_ring[rx_cur].flags;
         uint16_t received_len = rx_ring[rx_cur].status & 0x0FFF;
-
-        if (rx_poll_dbg++ < 5)
-            kprintf("[virtio] POL RX[%d] flags=0x%x len=%d\n", rx_cur, flags, received_len);
 
         if (!(flags & (1 << 30)) && received_len > 0) {
             rx_cb(rx_bufs[rx_cur], received_len);
@@ -404,6 +284,8 @@ void virtio_poll_all(void) {
         rx_ring[rx_cur].flags |= (1 << 31);
         rx_ring[rx_cur].status = 0;
         rx_ring[rx_cur].reserved = 0;
+        asm volatile("clflush (%0)" :: "r"(&rx_ring[rx_cur].flags) : "memory");
+        asm volatile("mfence" ::: "memory");
         rx_cur = (rx_cur + 1) % RX_RING;
     }
 }

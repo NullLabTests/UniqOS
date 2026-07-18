@@ -55,14 +55,11 @@ static uint16_t tcp_checksum(const ip_t *src, const ip_t *dst,
     return ~sum;
 }
 
-static int seg_dbg;
 static void tcp_send_segment(uint8_t flags, uint32_t seq, uint32_t ack,
                               const uint8_t *payload, uint16_t paylen) {
     uint16_t hdrlen = sizeof(tcp_hdr_t);
     uint8_t seg[hdrlen + paylen];
     tcp_hdr_t *tcp = (tcp_hdr_t *)seg;
-    if (seg_dbg++ < 5)
-        kprintf("[tcp] send flags=0x%x seq=%d\n", flags, seq);
 
     tcp->src_port = ((tcp_local_port >> 8) & 0xFF) | ((tcp_local_port & 0xFF) << 8);
     tcp->dst_port = ((tcp_remote_port >> 8) & 0xFF) | ((tcp_remote_port & 0xFF) << 8);
@@ -160,6 +157,11 @@ void tcp_handle(const uint8_t *data, uint16_t len, ip_t src, ip_t dst) {
     }
 
     if (tcp_state == TCP_ESTABLISHED) {
+        if (paylen > 0 && flags & TCP_ACK) {
+            tcp_rcv_seq = seq + paylen;
+            tcp_send_segment(TCP_ACK, tcp_snd_seq, tcp_rcv_seq, 0, 0);
+            if (tcp_on_data) tcp_on_data(payload, paylen);
+        }
         if (flags & TCP_FIN) {
             tcp_rcv_seq = seq + 1;
             tcp_send_segment(TCP_ACK | TCP_FIN, tcp_snd_seq, tcp_rcv_seq, 0, 0);
@@ -168,23 +170,15 @@ void tcp_handle(const uint8_t *data, uint16_t len, ip_t src, ip_t dst) {
             if (tcp_on_closed) tcp_on_closed();
             return;
         }
-        if (paylen > 0 && flags & TCP_ACK) {
-            tcp_rcv_seq = seq + paylen;
-            tcp_send_segment(TCP_ACK, tcp_snd_seq, tcp_rcv_seq, 0, 0);
-            if (tcp_on_data) tcp_on_data(payload, paylen);
-        }
     }
 }
 
-static int tcp_dbg;
 void tcp_tick(void) {
     if (tcp_state == TCP_SYN_SENT && tcp_retry_count < 5) {
         uint64_t now = pit_get_tick();
         if (now - tcp_retry_tick >= 10) {
             tcp_retry_tick = now;
             tcp_retry_count++;
-            if (tcp_dbg++ < 5)
-                kprintf("[tcp] retry %d\n", tcp_retry_count);
             tcp_send_segment(TCP_SYN, tcp_snd_seq - 1, 0, 0, 0);
         }
     }

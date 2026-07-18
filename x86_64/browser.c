@@ -24,6 +24,7 @@ static void browser_http_cb(const char *response, uint16_t len) {
     browser_content[len] = 0;
     browser_len = len;
     browser_fetching = 0;
+    kprintf("[browser] HTTP done, %d bytes received\n", len);
 }
 
 void browser_init(void) {
@@ -40,10 +41,10 @@ void browser_fetch(const char *host, const char *path) {
     browser_fetching = 1;
 
     ip_t server;
-    server.addr[0] = 93;
-    server.addr[1] = 184;
-    server.addr[2] = 216;
-    server.addr[3] = 34;
+    server.addr[0] = 104;
+    server.addr[1] = 20;
+    server.addr[2] = 23;
+    server.addr[3] = 154;
 
     http_get(server, 80, host, path, browser_http_cb);
 }

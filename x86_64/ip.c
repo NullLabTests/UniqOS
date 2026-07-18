@@ -18,8 +18,9 @@ uint16_t ip_checksum(const uint16_t *data, int len) {
 void ip_init(void) {}
 
 void ip_send(ip_t dst, uint8_t proto, const uint8_t *data, uint16_t len) {
-    uint8_t buf[sizeof(eth_hdr_t) + sizeof(ip_hdr_t) + 1500];
     if (sizeof(ip_hdr_t) + len > 1500) return;
+    uint16_t total = sizeof(eth_hdr_t) + sizeof(ip_hdr_t) + len;
+    uint8_t buf[total];
     eth_hdr_t *eth = (eth_hdr_t *)buf;
     ip_hdr_t *ip = (ip_hdr_t *)(buf + sizeof(eth_hdr_t));
     uint8_t *payload = buf + sizeof(eth_hdr_t) + sizeof(ip_hdr_t);
@@ -63,15 +64,12 @@ void ip_send(ip_t dst, uint8_t proto, const uint8_t *data, uint16_t len) {
     for (int i = 0; i < 6; i++) eth->src.addr[i] = net_mac.addr[i];
     eth->type = 0x0008;
 
-    virtio_send(buf, sizeof(buf));
+    virtio_send(buf, total);
 }
 
-static int ip_dbg;
 void ip_handle(const uint8_t *data, uint16_t len) {
     if (len < sizeof(eth_hdr_t) + sizeof(ip_hdr_t)) return;
     eth_hdr_t *eth = (eth_hdr_t *)data;
-    if (ip_dbg++ < 5)
-        kprintf("[ip] RX\n");
     if (eth->type != 0x0008) return;
 
     ip_hdr_t *ip = (ip_hdr_t *)(data + sizeof(eth_hdr_t));

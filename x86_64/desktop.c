@@ -7,6 +7,7 @@
 #include "kernel.h"
 #include "font.h"
 #include "tcp.h"
+#include "http.h"
 #include "browser.h"
 #include "shell.h"
 #include "fileman.h"
