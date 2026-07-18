@@ -414,6 +414,8 @@ void desktop_init(void) {
 
     launch_terminal();
     browser_init();
+    // focus the terminal so keyboard works immediately
+    if (shell_win_id) window_focus(shell_win_id);
 }
 
 void desktop_run(void) {

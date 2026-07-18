@@ -77,8 +77,13 @@ void display_init(void) {
     if (vbe_init(1024, 768, 32) == 0) {
         fb_width = 1024;
         fb_height = 768;
-        fb_bpp = 32;
-        fb_pitch = fb_width * 4;
+        // Verify actual bpp from VBE
+        uint16_t actual_bpp = vbe_read(VBE_DISPI_INDEX_BPP);
+        fb_bpp = actual_bpp ? actual_bpp : 32;
+        if (fb_bpp != 32) {
+            kprintf("[display] WARNING: VBE returned %d bpp, adjusting\n", fb_bpp);
+        }
+        fb_pitch = fb_width * (fb_bpp / 8);
         fb_addr = (uint32_t *)0x200000000;
 
         for (int i = 0; i < (fb_pitch * fb_height + 0xFFF) / 0x1000; i++)
@@ -125,11 +130,7 @@ void display_fill_rect(int x, int y, int w, int h, uint32_t color) {
 
 void display_present(void) {
     if (!fb_initialized || !back_buffer) return;
-    uint32_t *src = back_buffer;
-    volatile uint32_t *dst = fb_addr;
-    for (int i = 0; i < fb_height; i++)
-        for (int j = 0; j < fb_width; j++)
-            dst[i * fb_width + j] = src[i * fb_width + j];
+    memcpy((void*)fb_addr, back_buffer, fb_pitch * fb_height);
 }
 
 int display_get_width(void) { return fb_width; }
@@ -139,41 +140,12 @@ uint32_t *display_get_buffer(void) { return back_buffer; }
 void display_put_char(int x, int y, char c, uint32_t fg, uint32_t bg) {
     if (!fb_initialized) return;
     if (c < 0 || c > 127) return;
-    int fgr = (fg >> 16) & 0xFF, fgg = (fg >> 8) & 0xFF, fgb = fg & 0xFF;
-    int bgr = (bg >> 16) & 0xFF, bgg = (bg >> 8) & 0xFF, bgb = bg & 0xFF;
     for (int row = 0; row < 16; row++) {
         uint8_t bits = font8x16_basic[(int)c][row];
         for (int col = 0; col < 8; col++) {
             int px = x + col, py = y + row;
             if (px < 0 || px >= fb_width || py < 0 || py >= fb_height) continue;
-            int on = (bits & (0x80 >> col)) != 0;
-            if (!on && (fgr == bgr && fgg == bgg && fgb == bgb)) {
-                back_buffer[py * fb_width + px] = bg;
-                continue;
-            }
-            // check 4-neighbor edge for anti-aliasing
-            int n_on = 0, total = 0;
-            if (col > 0) { n_on += (bits & (0x80 >> (col-1))) != 0; total++; }
-            if (col < 7) { n_on += (bits & (0x80 >> (col+1))) != 0; total++; }
-            if (row > 0) {
-                uint8_t pr = font8x16_basic[(int)c][row-1];
-                n_on += (pr & (0x80 >> col)) != 0; total++;
-            }
-            if (row < 15) {
-                uint8_t nr = font8x16_basic[(int)c][row+1];
-                n_on += (nr & (0x80 >> col)) != 0; total++;
-            }
-            if (on && n_on < total) {
-                // interior fg pixel with bg neighbor -> half blend
-                int r = (fgr + bgr) >> 1, g = (fgg + bgg) >> 1, b = (fgb + bgb) >> 1;
-                back_buffer[py * fb_width + px] = (r << 16) | (g << 8) | b;
-            } else if (!on && n_on > 0) {
-                // bg pixel with fg neighbor -> half blend
-                int r = (fgr + bgr) >> 1, g = (fgg + bgg) >> 1, b = (fgb + bgb) >> 1;
-                back_buffer[py * fb_width + px] = (r << 16) | (g << 8) | b;
-            } else {
-                back_buffer[py * fb_width + px] = on ? fg : bg;
-            }
+            back_buffer[py * fb_width + px] = (bits & (0x80 >> col)) ? fg : bg;
         }
     }
 }
