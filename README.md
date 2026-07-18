@@ -40,18 +40,7 @@ Every version of this OS is a **benchmark for AI capability**. The question isn'
 
 The unit of work changes from **"lines of code"** to **"verified system behaviors."**
 
-This project is part of that trajectory. Each AI-assisted capability added to UniqOS (TCP stack, browser parsing, styled rendering) represents a milestone in what AI can achieve when paired with human architecture and verification.
-
-### What This Means
-
-| Today | Near Future |
-|---|---|
-| You write kmalloc shim by hand | Agent writes shim, you review |
-| You debug virtio_net via serial log | Agent captures pcap, correlates with kernel log, proposes fix |
-| You design layout algorithm | Agent generates 10 variants, benchmarks in VM, picks fastest |
-| You maintain Makefile | Agent generates build system from dependency graph |
-
-**You become the architect/verifier. The agent becomes the experimental executor.**
+This project is a data point on that curve. Each AI-assisted capability added to UniqOS (TCP stack, browser parsing, styled rendering) represents a milestone in what AI can achieve when paired with human architecture and verification.
 
 ---
 
@@ -140,6 +129,16 @@ UniqOS is a from-scratch x86_64 operating system with approximately **8,000 line
 
 ---
 
+## Current Limitations
+- **Browser**: No HTTPS/TLS, no JavaScript, no external CSS, limited HTML5 support
+- **Network**: NAT only (no bridge), DHCP not implemented (static IP 10.0.2.15)
+- **Storage**: No persistent filesystem (VFS is in-memory only)
+- **Graphics**: No hardware acceleration, software rendering only
+- **Scheduler**: Cooperative only — no preemption, no SMP
+- **Testing**: No automated test suite; manual QA via `qa.py`
+
+---
+
 ## Building and Running
 
 ### Prerequisites
@@ -201,6 +200,8 @@ This project was built with assistance from frontier LLMs. The following multi-a
 | Langroid | 4K | Multi-agent programming | Dev-focused |
 | Generative Agents | 22K | Simulated society | Social simulation |
 
+> **Note**: These frameworks *inspired* the development approach. UniqOS was built primarily with direct LLM assistance (single-agent + human steering), not autonomous multi-agent swarms.
+
 The trajectory is clear: each generation of these frameworks reduces the gap between human intent and working software. UniqOS is a data point on that curve.
 
 ---
@@ -250,34 +251,15 @@ UniqOS/
 │   ├── sysmon.c          # System monitor app
 │   ├── vfs.c             # Virtual filesystem
 │   └── support.c         # String/memory utilities
-├── OPENCODE_BROWSER_PROMPT.md  # Full styled-browser spec
+├── OPENCODE_BROWSER_PROMPT.md  # Full styled-browser spec used to guide AI implementation
 └── README.md
 ```
 
----
-
-## How This Started
-
-A personal challenge: **can an individual with AI assistance build a complete operating system from scratch?**
-
-The answer, as of July 2026, is **yes**.
-
-Not just a booting kernel — a system with:
-- Graphics and windowing
-- Full TCP/IP networking (stateful TCP, DNS, ARP, ICMP)
-- A web browser that renders styled HTML pages
-- Multiple concurrent applications (terminal, editor, file manager, system monitor)
-- Mouse and keyboard input
-
-The browser loads real websites from the internet, parses their HTML, applies CSS-like styling, lays out the content with word wrapping, renders bold/underlined/colored text, and handles clickable links for navigation.
-
-This is a **completely unique browser fingerprint** — no Chrome, no Firefox, no WebKit. Just raw HTTP over a custom TCP stack displayed through a custom font renderer.
-
----
+## Reproduce / Extend
+The full browser specification used to guide AI implementation is in [`OPENCODE_BROWSER_PROMPT.md`](OPENCODE_BROWSER_PROMPT.md).
 
 ## License
-
-This project is shared as a learning resource and inspiration. Feel free to study, fork, and experiment.
+MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
